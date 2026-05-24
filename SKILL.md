@@ -1,10 +1,10 @@
 ---
-name: pyprof
+name: workspace-analyzer
 description: Python project profiler — identify slow functions, hot loops, and memory hogs using cProfile and line_profiler
 version: 1.3.0
 ---
 
-# PyProf — Python Performance Profiler
+# Workspace Analyzer — Python Performance Profiler
 
 Profile your Python project to find bottlenecks before they hit production.
 
@@ -17,7 +17,7 @@ Profile my Python project
 Find the slowest functions in my code
 ```
 ```
-Run pyprof on this project
+Run workspace-analyzer on this project
 ```
 
 ## What it does
@@ -35,11 +35,11 @@ Run pyprof on this project
 ## Example output
 
 ```
-PyProf v1.3.0 — Python Performance Profiler
+workspace-analyzer v1.3.0 — Python Performance Profiler
 Scanning 24 Python files...
 
 ⚠ HIGH IMPACT — app/models.py:142 — O(n²) loop detected
-⚠ MEDIUM    — utils/parser.py:67  — repeated file.read() in loop  
+⚠ MEDIUM    — utils/parser.py:67  — repeated file.read() in loop
 ✓ OK        — api/routes.py       — no issues found
 
 Top suggestion: cache the result of parse_config() — called 847x per request

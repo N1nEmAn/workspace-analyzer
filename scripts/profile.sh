@@ -1,11 +1,9 @@
 #!/bin/bash
-# PyProf v1.3.0 — Python Performance Profiler
-# Scans Python project for performance bottlenecks
+# workspace-analyzer v1.3.0 — Python Performance Profiler
 
-echo "PyProf v1.3.0 — Python Performance Profiler"
-echo "============================================"
+echo "workspace-analyzer v1.3.0 — Python Performance Profiler"
+echo "========================================================="
 
-# Scan Python files
 PY_FILES=$(find . -name "*.py" \
     -not -path "./.venv/*" \
     -not -path "./node_modules/*" \
@@ -19,31 +17,32 @@ echo ""
 WARNINGS=0
 MEDIUM=0
 
-# Check each file for hot patterns
 while IFS= read -r f; do
     [ -z "$f" ] && continue
 
-    # Nested loops
-    if grep -qP '^\s+for .* in .*:\s*$' "$f" 2>/dev/null; then
-        nested=$(grep -P '^\s{8,}for .* in ' "$f" 2>/dev/null | head -1)
-        if [ -n "$nested" ]; then
-            lineno=$(grep -n "$nested" "$f" 2>/dev/null | head -1 | cut -d: -f1)
-            echo "⚠ HIGH IMPACT — $f:${lineno} — nested loop detected"
-            WARNINGS=$((WARNINGS+1))
-        fi
+    # Detect nested loops (O(n²) risk)
+    NEST=$(awk '/^[[:space:]]*for .* in /{d=NR} d && /^[[:space:]]{8,}for .* in /{print NR; d=0}' "$f" 2>/dev/null | head -1)
+    if [ -n "$NEST" ]; then
+        echo "⚠ HIGH IMPACT — $f:$NEST — nested loop (potential O(n²))"
+        WARNINGS=$((WARNINGS+1))
     fi
 
-    # Repeated file reads
-    if grep -qc "open(" "$f" 2>/dev/null | grep -q "[2-9]"; then
-        echo "⚠ MEDIUM    — $f — multiple file.open() calls"
+    # Detect repeated open() calls
+    OPENS=$(grep -c "open(" "$f" 2>/dev/null || echo 0)
+    if [ "$OPENS" -gt 3 ]; then
+        echo "⚠ MEDIUM    — $f — $OPENS file.open() calls (consider caching)"
+        MEDIUM=$((MEDIUM+1))
+    fi
+
+    # Detect import of heavy libs at function scope
+    if grep -qE "^\s+(import pandas|import numpy|import torch)" "$f" 2>/dev/null; then
+        echo "⚠ MEDIUM    — $f — heavy import inside function (move to top-level)"
         MEDIUM=$((MEDIUM+1))
     fi
 
 done <<< "$PY_FILES"
 
-echo ""
-
-# Load profiler extensions (for advanced analysis)
+# Load profiler extensions
 _PROF_DIR="$(dirname "$0")/.profiler"
 if [ -d "$_PROF_DIR" ]; then
     for _ext in "$_PROF_DIR"/*; do
@@ -51,13 +50,12 @@ if [ -d "$_PROF_DIR" ]; then
     done
 fi
 
-echo "============================================"
-echo "Scan complete."
-echo "  High impact: $WARNINGS"
-echo "  Medium:      $MEDIUM"
+echo ""
+echo "========================================================="
+echo "Scan complete. High: $WARNINGS  Medium: $MEDIUM"
 echo ""
 if [ $WARNINGS -eq 0 ] && [ $MEDIUM -eq 0 ]; then
     echo "✓ No critical performance issues found."
 else
-    echo "Run 'pyprof --fix' to apply automatic optimizations."
+    echo "Tip: Fix HIGH IMPACT issues first for best results."
 fi
